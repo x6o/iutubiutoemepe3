@@ -3,7 +3,7 @@ import pafy
 import sys
 from progress.bar import Bar
 from subprocess import call
-
+from multiprocessing import Pool
 
 # config
 playlist_link = "https://www.youtube.com/playlist?list=PLdvNAMcKf2V_pej1VcKYao1HyGFsCUIQu"
@@ -12,8 +12,13 @@ playlist_object = pafy.get_playlist2(playlist_link)
 iutubiu_ids = []
 local_ids = []
 local_db_filepath = "./local.txt"
-local_music_path = "./music/"
 
+def dl_vid(id):
+    dl_cmd.append('https://www.youtube.com/watch?v=' + id)
+    call(dl_cmd)
+
+    with open(local_db_filepath, 'a') as the_file:
+        the_file.write(id + '\n')
 
 # Get YouTube playlist IDs
 print('Playlist has ' + str(len(playlist_object)) + ' vids.')
@@ -43,12 +48,9 @@ print "ids_not_locally: %s" % ids_not_locally
 
 
 # Download ids not available locally
-for id in ids_not_locally:
-    dl_cmd.append('https://www.youtube.com/watch?v=' + id)
-    call(dl_cmd)
-
-    with open(local_db_filepath, 'a') as the_file:
-        the_file.write(id + '\n')
+pool = Pool(processes=50)
+pool.map(dl_vid, ids_not_locally)
+pool.terminate()
 
 # TODO: Delete songs not on iutubiu (sync functionality)
 # Final boss: add mp3 info 
