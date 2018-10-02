@@ -4,6 +4,9 @@ import sys
 from progress.bar import Bar
 from subprocess import call
 from multiprocessing import Pool
+from os import listdir, remove
+from os.path import isfile, join
+
 
 # config
 playlist_link = "https://www.youtube.com/playlist?list=PLdvNAMcKf2V_pej1VcKYao1HyGFsCUIQu"
@@ -12,6 +15,8 @@ playlist_object = pafy.get_playlist2(playlist_link)
 iutubiu_ids = []
 local_ids = []
 local_db_filepath = "./local.txt"
+files_in_directory = [f for f in listdir('./') if isfile(join('./', f))]
+local_paths = {}
 
 def dl_vid(id):
     dl_cmd.append('https://www.youtube.com/watch?v=' + id)
@@ -19,6 +24,32 @@ def dl_vid(id):
 
     with open(local_db_filepath, 'a') as the_file:
         the_file.write(id + '\n')
+
+def delete_local_vid(id):
+    try:
+        #remove from file
+        f = open(local_db_filepath,"r+")
+        d = f.read().splitlines()
+        f.seek(0)
+        for i in d:
+            if i != id:
+                f.write(i + '\n')
+        f.truncate()
+        f.close()
+
+        # remove from dir
+        remove("./" + local_paths[id])
+        print 'Deleted id: %s' % id 
+    except Exception, e:
+        print repr(e)
+
+def map_paths():
+    for id in local_ids:
+        for filename in files_in_directory:
+            curr_id = filename.split(".")[-2][-11:]
+            print "curr_id: %s" % curr_id
+            if id == curr_id:
+                local_paths[id] = filename
 
 # Get YouTube playlist IDs
 print('Playlist has ' + str(len(playlist_object)) + ' vids.')
@@ -48,9 +79,17 @@ print "ids_not_locally: %s" % ids_not_locally
 
 
 # Download ids not available locally
-pool = Pool(processes=50)
-pool.map(dl_vid, ids_not_locally)
-pool.terminate()
+if ids_not_locally:
+    pool = Pool(processes=50)
+    pool.map(dl_vid, ids_not_locally)
+    pool.terminate()
 
-# TODO: Delete songs not on iutubiu (sync functionality)
+# Delete songs not on iutubiu (sync functionality)
+if ids_not_on_iutubiu and local_ids:
+    map_paths()
+    pool = Pool(processes=10)
+    pool.map(delete_local_vid, ids_not_on_iutubiu)
+    pool.terminate()
+
 # Final boss: add mp3 info 
+# Final final boss: sync with ipod!
